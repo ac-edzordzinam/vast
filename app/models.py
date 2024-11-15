@@ -1,13 +1,14 @@
 from flask import g, current_app
 from bson import ObjectId
+from flask_pymongo import PyMongo
 from pymongo import MongoClient
 from datetime import datetime
 import os
 from dotenv import load_dotenv
+from config import mongo
 
 # Initialize db
-db = g._database = current_app.extensions['pymongo'].db
-
+db = mongo.db
 
 def add_transaction(user_id, amount, category, transaction_type, date):
     transaction = {
