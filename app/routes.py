@@ -29,7 +29,7 @@ def get_all_transactions():
     # Return the list as JSON
     return jsonify(transactions_list)
     
-@api.route('/transactions_by_month', methods=['GET'])
+@api.route('/transactions_by_month', methods=['POST'])
 def get_transactions_by_month():
     try:
         user_id = request.args.get('user_id')
@@ -53,10 +53,10 @@ def get_transactions_by_month():
         # Log the parsed dates
         print(f"Start Date: {start_date}, End Date: {end_date}")
 
-        # Build MongoDB query - handling the date as a string (ISO 8601)
+        # Build MongoDB query - no need for ISODate conversion, just pass datetime objects
         query = {
             "user_id": user_id,
-            "date": {"$gte": start_date.isoformat(), "$lt": end_date.isoformat()}
+            "date": {"$gte": start_date, "$lt": end_date}
         }
         if category:
             query["category"] = category
@@ -83,7 +83,7 @@ def get_transactions_by_month():
     
 
 
-@api.route('/transactions_by_category', methods=['GET'])
+@api.route('/transactions_by_category', methods=['POST'])
 def get_transactions_by_category():
     try:
         user_id = request.args.get('user_id')
