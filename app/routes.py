@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify, redirect, flash, abort, current_a
 from bson.objectid import ObjectId
 from bson.errors import InvalidId
 import logging
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,100 @@ def get_all_transactions():
     # Return the list as JSON
     return jsonify(transactions_list)
     
+@api.route('/transactions_by_month', methods=['GET'])
+def get_transactions_by_month():
+    try:
+        user_id = request.args.get('user_id')
+        month = request.args.get('month')
+        year = request.args.get('year')
+        category = request.args.get('category')
+
+        if not user_id or not month or not year:
+            return jsonify({"error": "Missing required parameters: user_id, month, or year"}), 400
+
+        try:
+            # Parse start and end dates based on month and year
+            start_date = datetime.strptime(f"{year}-{month}-01", "%Y-%m-%d")
+            if int(month) == 12:  # Handling December edge case
+                end_date = datetime.strptime(f"{int(year) + 1}-01-01", "%Y-%m-%d")
+            else:
+                end_date = datetime.strptime(f"{year}-{int(month) + 1}-01", "%Y-%m-%d")
+        except ValueError:
+            return jsonify({"error": "Invalid date format for year or month"}), 400
+
+        # Log the parsed dates
+        print(f"Start Date: {start_date}, End Date: {end_date}")
+
+        # Build MongoDB query - handling the date as a string (ISO 8601)
+        query = {
+            "user_id": user_id,
+            "date": {"$gte": start_date.isoformat(), "$lt": end_date.isoformat()}
+        }
+        if category:
+            query["category"] = category
+
+        print("Query being sent to MongoDB:", query)
+
+        # Query the database
+        transactions_table = current_app.config['TRANSACTIONS_COLLECTION']
+        filtered_transactions = transactions_table.find(query)
+
+        # Prepare the list of transactions
+        transactions_list = []
+        for transaction in filtered_transactions:
+            transaction['_id'] = str(transaction['_id'])  # Convert ObjectId to string
+            transactions_list.append(transaction)
+
+        print("Filtered Transactions:", transactions_list)  # Log the transactions
+
+        # If no transactions, return empty array
+        return jsonify(transactions_list if transactions_list else [])
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+
+
+@api.route('/transactions_by_category', methods=['GET'])
+def get_transactions_by_category():
+    try:
+        user_id = request.args.get('user_id')
+        category = request.args.get('category')
+
+        if not user_id or not category:
+            return jsonify({"error": "Missing required parameters: user_id or category"}), 400
+
+        # Log the parameters being used
+        print(f"Filtering transactions for user_id: {user_id}, category: {category}")
+
+        # Build MongoDB query to filter by user_id and category
+        query = {
+            "user_id": user_id,
+            "category": category
+        }
+
+        print("Query being sent to MongoDB:", query)
+
+        # Query the database
+        transactions_table = current_app.config['TRANSACTIONS_COLLECTION']
+        filtered_transactions = transactions_table.find(query)
+
+        # Prepare the list of transactions
+        transactions_list = []
+        for transaction in filtered_transactions:
+            transaction['_id'] = str(transaction['_id'])  # Convert ObjectId to string
+            transactions_list.append(transaction)
+
+        print("Filtered Transactions:", transactions_list)  # Log the transactions
+
+        # If no transactions, return empty array
+        return jsonify(transactions_list if transactions_list else [])
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
 
 
 # add item to the list
