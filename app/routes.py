@@ -125,6 +125,91 @@ def get_transactions_by_category():
 
 
 
+
+@api.route('/transactions_by_sum_month', methods=['POST'])
+def get_transactions_by_month():
+    try:
+        user_id = request.args.get('user_id')
+        month = request.args.get('month')
+        year = request.args.get('year')
+        category = request.args.get('category')
+        transaction_type = request.args.get('transaction_type')  # Added filter for transaction_type
+
+        if not user_id or not month or not year:
+            return jsonify({"error": "Missing required parameters: user_id, month, or year"}), 400
+
+        try:
+            # Parse start and end dates based on month and year
+            start_date = datetime.strptime(f"{year}-{month}-01", "%Y-%m-%d")
+            if int(month) == 12:  # Handling December edge case
+                end_date = datetime.strptime(f"{int(year) + 1}-01-01", "%Y-%m-%d")
+            else:
+                end_date = datetime.strptime(f"{year}-{int(month) + 1}-01", "%Y-%m-%d")
+        except ValueError:
+            return jsonify({"error": "Invalid date format for year or month"}), 400
+
+        # Log the parsed dates
+        print(f"Start Date: {start_date}, End Date: {end_date}")
+
+        # Build MongoDB query - no need for ISODate conversion, just pass datetime objects
+        query = {
+            "user_id": user_id,
+            "date": {"$gte": start_date, "$lt": end_date}
+        }
+
+        if category:
+            query["category"] = category
+        
+        if transaction_type:
+            query["transaction_type"] = transaction_type  # Apply transaction_type filter
+
+        print("Query being sent to MongoDB:", query)
+
+        # Query the database and aggregate to calculate the sum
+        transactions_table = current_app.config['TRANSACTIONS_COLLECTION']
+
+        # Aggregation pipeline to calculate sum
+        pipeline = [
+            {"$match": query},  # Match transactions based on the query
+            {"$group": {
+                "_id": None,  # No grouping, just aggregate the total sum
+                "total_amount": {"$sum": "$amount"}
+            }}
+        ]
+
+        result = transactions_table.aggregate(pipeline)
+
+        # Get the sum from the aggregation result
+        total_amount = 0
+        for item in result:
+            total_amount = item.get('total_amount', 0)
+
+        # Query for individual transactions
+        filtered_transactions = transactions_table.find(query)
+
+        # Prepare the list of transactions
+        transactions_list = []
+        for transaction in filtered_transactions:
+            transaction['_id'] = str(transaction['_id'])  # Convert ObjectId to string
+            transactions_list.append(transaction)
+
+        # Log the results
+        print("Filtered Transactions:", transactions_list)  # Log the transactions
+        print("Total Amount for the month:", total_amount)  # Log the total amount
+
+        # If no transactions, return empty array
+        response_data = {
+            "transactions": transactions_list if transactions_list else [],
+            "total_amount": total_amount
+        }
+
+        return jsonify(response_data)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
 # add item to the list
 @api.route("/create", methods=["POST"])
 def create():
