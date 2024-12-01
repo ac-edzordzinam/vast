@@ -307,6 +307,14 @@ def get_revenue_trends():
         start_of_previous_week = today - timedelta(days=today.weekday() + 7)  # Subtract 7 days to get the previous week
         end_of_previous_week = start_of_previous_week + timedelta(days=6)  # Saturday of the previous week
 
+        # Remove the time part of the date (only compare the date)
+        start_of_previous_week = start_of_previous_week.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_previous_week = end_of_previous_week.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+        # Debugging: Print the date range to check
+        print(f"Start of previous week: {start_of_previous_week}")
+        print(f"End of previous week: {end_of_previous_week}")
+
         # MongoDB pipeline to get transactions for the previous week
         pipeline = [
             {
@@ -360,6 +368,7 @@ def get_revenue_trends():
         # Ensure all days of the week (Sun-Sat) are represented
         all_days_of_week = {weekday_names[i]: {"revenue": 0, "expenses": 0} for i in range(1, 8)}
 
+        # Fill in the actual data
         for data in weekly_data:
             all_days_of_week[data["day"]] = data
 
@@ -373,6 +382,7 @@ def get_revenue_trends():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
     
 
 
@@ -492,9 +502,18 @@ def get_financial_summary():
 
         # MongoDB aggregation for revenue trends (previous week)
         today = datetime.today()
-        start_of_previous_week = today - timedelta(days=today.weekday() + 7)
-        end_of_previous_week = start_of_previous_week + timedelta(days=6)
+        start_of_previous_week = today - timedelta(days=today.weekday() + 7)  # Subtract 7 days to get the previous week
+        end_of_previous_week = start_of_previous_week + timedelta(days=6)  # Saturday of the previous week
 
+        # Remove the time part of the date (only compare the date)
+        start_of_previous_week = start_of_previous_week.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_previous_week = end_of_previous_week.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+        # Debugging: Print the date range to check
+        print(f"Start of previous week: {start_of_previous_week}")
+        print(f"End of previous week: {end_of_previous_week}")
+
+        # MongoDB pipeline to get transactions for the previous week
         pipeline_revenue_trends = [
             {
                 "$match": {
@@ -507,7 +526,7 @@ def get_financial_summary():
             {
                 "$group": {
                     "_id": {
-                        "day_of_week": {"$dayOfWeek": "$date"}
+                        "day_of_week": {"$dayOfWeek": "$date"}  # 1 = Sunday, 2 = Monday, ..., 7 = Saturday
                     },
                     "total_income": {
                         "$sum": {"$cond": [{"$eq": ["$transaction_type", "Income"]}, "$amount", 0]}
@@ -518,7 +537,7 @@ def get_financial_summary():
                 }
             },
             {
-                "$sort": {"_id.day_of_week": 1}
+                "$sort": {"_id.day_of_week": 1}  # Sort by day of the week (1 = Sunday, 7 = Saturday)
             }
         ]
 
