@@ -5,6 +5,8 @@ from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
 
+from flask_cors import CORS
+
 load_dotenv()
 mongo = PyMongo()
 
@@ -19,6 +21,9 @@ def create_app():
     # Initialize PyMongo
     # mongo.init_app(app)
     # logger.info("Initialized MongoDB connection.")
+    
+    # Initialize CORS for the entire app
+    CORS(app)
 
     MONGO_URI = app.config.get("MONGO_URI")
     SECRET_KEY = app.config.get("SECRET_KEY")
